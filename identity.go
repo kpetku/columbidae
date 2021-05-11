@@ -1,10 +1,9 @@
 package main
 
 import (
-	"crypto"
 	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 )
 
 type Identity struct {
@@ -13,7 +12,7 @@ type Identity struct {
 	PrivKey ed25519.PrivateKey
 }
 
-// NewIdentity creates a new identity to use for creating messages
+// NewIdentity creates a new identity PubKey and PrivKey keypair to use for signing messages
 func NewIdentity() (Identity, error) {
 	i := Identity{}
 	pub, priv, err := ed25519.GenerateKey(nil)
@@ -28,20 +27,12 @@ func NewIdentity() (Identity, error) {
 	return i, nil
 }
 
-func (i *Identity) NewMessage(depth int, kind string, prev string, content []string) (*Message, error) {
-	m := Message{}
-	m.Header.author = i.Name
-	m.Header.depth = depth
-	m.Header.prev = prev
-	m.Header.kind = kind
-	m.Body = content
+// GetPrivKey returns a stanard base64 encoded string of an Identity PrivKey
+func (i Identity) GetPrivKey() string {
+	return base64.StdEncoding.EncodeToString(i.PrivKey)
+}
 
-	sig, err := i.PrivKey.Sign(rand.Reader, []byte(m.unsignedString()), crypto.Hash(0))
-	if err != nil {
-		return &Message{}, err
-	}
-	data := base32.NewEncoding(crockford).WithPadding(base32.NoPadding).EncodeToString(sig)
-
-	m.Footer = data
-	return &m, nil
+// GetPrivKey returns a crockford base32 encoded string of an Identity PubKey
+func (i Identity) GetPubKey() string {
+	return base32.NewEncoding(crockford).WithPadding(base32.NoPadding).EncodeToString(i.PubKey)
 }

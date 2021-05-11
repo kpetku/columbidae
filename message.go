@@ -1,12 +1,16 @@
 package main
 
 import (
+	"crypto"
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base32"
+	"errors"
 	"strconv"
 	"strings"
 )
 
+// Message contains the header, body, footer signature of a Message
 type Message struct {
 	Header Header
 	Body   []string
@@ -38,7 +42,7 @@ func (m Message) unsignedString() string {
 	return sb.String()
 }
 
-// IsValid verifies the message footer (signature) and returns true if it is valid
+// IsValid verifies if the message footer signature was signed by the Message Author
 func (m Message) IsValid() (bool, error) {
 	a := strings.TrimPrefix(m.Header.author, authorPrefix)
 	pubKey, err := base32.NewEncoding(crockford).WithPadding(base32.NoPadding).DecodeString(a)
@@ -50,4 +54,22 @@ func (m Message) IsValid() (bool, error) {
 		return false, err
 	}
 	return ed25519.Verify(pubKey, []byte(m.unsignedString()), sig), err
+}
+
+// Sign signs a Message with an Identity privateKey
+func (m *Message) Sign(i Identity) error {
+	if m.Footer != "" {
+		return errors.New("unable to sign message: message already signed")
+	}
+	if i.PrivKey == nil {
+		return errors.New("unable to sign message: invalid identity PrivKey")
+	}
+	sig, err := i.PrivKey.Sign(rand.Reader, []byte(m.unsignedString()), crypto.Hash(0))
+	if err != nil {
+		return err
+	}
+	data := base32.NewEncoding(crockford).WithPadding(base32.NoPadding).EncodeToString(sig)
+
+	m.Footer = data
+	return nil
 }
