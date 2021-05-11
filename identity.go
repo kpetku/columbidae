@@ -13,11 +13,12 @@ type Identity struct {
 	PrivKey ed25519.PrivateKey
 }
 
-func NewIdentity() (*Identity, error) {
-	i := new(Identity)
+// NewIdentity creates a new identity to use for creating messages
+func NewIdentity() (Identity, error) {
+	i := Identity{}
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
-		return &Identity{}, err
+		return Identity{}, err
 	}
 	data := base32.NewEncoding(crockford).WithPadding(base32.NoPadding).EncodeToString(pub)
 	i.Name = authorPrefix + data
@@ -35,7 +36,7 @@ func (i *Identity) NewMessage(depth int, kind string, prev string, content []str
 	m.Header.kind = kind
 	m.Body = content
 
-	sig, err := i.PrivKey.Sign(rand.Reader, []byte(m.String()), crypto.Hash(0))
+	sig, err := i.PrivKey.Sign(rand.Reader, []byte(m.unsignedString()), crypto.Hash(0))
 	if err != nil {
 		return &Message{}, err
 	}
